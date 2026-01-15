@@ -1,0 +1,151 @@
+### Variables
+@baseUrl = http://localhost:8000
+@token = 
+
+### ===== SYSTEM ENDPOINTS ===== ###
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Root Endpoint
+GET {{baseUrl}}/
+
+### ===== AUTHENTICATION ===== ###
+
+### Register New User
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "john.doe@example.com",
+  "username": "johndoe",
+  "password": "securepass123"
+}
+
+### Login (Copy the token from response and paste in @token variable above)
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=johndoe&password=securepass123
+
+### Get Current User
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### ===== TRANSACTIONS ===== ###
+
+### Create Buy Transaction - AAPL
+POST {{baseUrl}}/transactions/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "stock_symbol": "AAPL",
+  "stock_name": "Apple Inc.",
+  "transaction_type": "buy",
+  "quantity": 10,
+  "price_per_share": 150.50,
+  "notes": "First Apple purchase"
+}
+
+### Create Buy Transaction - GOOGL
+POST {{baseUrl}}/transactions/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "stock_symbol": "GOOGL",
+  "stock_name": "Alphabet Inc.",
+  "transaction_type": "buy",
+  "quantity": 5,
+  "price_per_share": 2800.00,
+  "notes": "Google investment"
+}
+
+### Create Buy Transaction - MSFT
+POST {{baseUrl}}/transactions/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "stock_symbol": "MSFT",
+  "stock_name": "Microsoft Corporation",
+  "transaction_type": "buy",
+  "quantity": 15,
+  "price_per_share": 380.00,
+  "notes": "Microsoft shares"
+}
+
+### Create Sell Transaction - Partial AAPL
+POST {{baseUrl}}/transactions/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "stock_symbol": "AAPL",
+  "transaction_type": "sell",
+  "quantity": 3,
+  "price_per_share": 160.00,
+  "notes": "Partial sell for profit"
+}
+
+### Get All Transactions
+GET {{baseUrl}}/transactions/
+Authorization: Bearer {{token}}
+
+### Get All Transactions with Pagination
+GET {{baseUrl}}/transactions/?skip=0&limit=10
+Authorization: Bearer {{token}}
+
+### Get Transactions for Specific Stock (AAPL)
+GET {{baseUrl}}/transactions/stock/AAPL
+Authorization: Bearer {{token}}
+
+### Get Specific Transaction (Replace 1 with actual ID)
+GET {{baseUrl}}/transactions/1
+Authorization: Bearer {{token}}
+
+### Delete Transaction (Replace 1 with actual ID)
+DELETE {{baseUrl}}/transactions/1
+Authorization: Bearer {{token}}
+
+### ===== PORTFOLIO ===== ###
+
+### Get Portfolio Summary (All Stocks)
+GET {{baseUrl}}/portfolio/summary
+Authorization: Bearer {{token}}
+
+### Get Stock Summary (AAPL)
+GET {{baseUrl}}/portfolio/summary/AAPL
+Authorization: Bearer {{token}}
+
+### Get Stock Summary (GOOGL)
+GET {{baseUrl}}/portfolio/summary/GOOGL
+Authorization: Bearer {{token}}
+
+### Get Total Portfolio Value
+GET {{baseUrl}}/portfolio/total
+Authorization: Bearer {{token}}
+
+### ===== ERROR TESTING ===== ###
+
+### Try to Sell Without Owning Stock
+POST {{baseUrl}}/transactions/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "stock_symbol": "TSLA",
+  "transaction_type": "sell",
+  "quantity": 10,
+  "price_per_share": 250.00
+}
+
+### Try to Access Protected Route Without Token
+GET {{baseUrl}}/transactions/
+
+### Try to Login with Wrong Password
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=johndoe&password=wrongpassword
