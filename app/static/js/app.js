@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+    // Initialize stock info auto-fill after a short delay
+    setTimeout(handleStockSymbolInput, 500);
 });
 
 // Auth functions
@@ -384,4 +386,97 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.classList.remove('show');
     }, 3000);
+}
+
+// Fetch current price from API
+async function fetchCurrentPrice(symbol) {
+    try {
+        const response = await fetch(`${API_URL}/stocks/price/${symbol}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.current_price;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching price:', error);
+        return null;
+    }
+}
+
+// Fetch stock info from API
+async function fetchStockInfo(symbol) {
+    try {
+        const response = await fetch(`${API_URL}/stocks/info/${symbol}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching stock info:', error);
+        return null;
+    }
+}
+
+// Auto-fill stock name and price when symbol is entered
+let symbolTimeout;
+function handleStockSymbolInput() {
+    const symbolInput = document.getElementById('stock-symbol');
+    const nameInput = document.getElementById('stock-name');
+    const priceInput = document.getElementById('price-per-share');
+    
+    if (symbolInput) {
+        symbolInput.addEventListener('input', () => {
+            // Clear previous timeout
+            clearTimeout(symbolTimeout);
+            
+            // Set new timeout (wait 800ms after user stops typing)
+            symbolTimeout = setTimeout(async () => {
+                const symbol = symbolInput.value.toUpperCase().trim();
+                
+                if (symbol.length >= 1) {
+                    symbolInput.value = symbol;
+                    
+                    if (symbol.length >= 2) {
+                        showNotification('Buscando información de ' + symbol + '...', 'info');
+                        
+                        const info = await fetchStockInfo(symbol);
+                        
+                        if (info && info.current_price) {
+                            // Fill company name
+                            if (info.name && nameInput) {
+                                nameInput.value = info.name;
+                            }
+                            
+                            // Fill current price
+                            if (priceInput) {
+                                priceInput.value = info.current_price.toFixed(2);
+                                
+                                // Auto-calculate total
+                                const quantityInput = document.getElementById('quantity');
+                                if (quantityInput && quantityInput.value) {
+                                    const quantity = parseFloat(quantityInput.value) || 0;
+                                    const price = parseFloat(priceInput.value) || 0;
+                                    const totalInput = document.getElementById('total-amount');
+                                    if (totalInput) {
+                                        totalInput.value = `$${(quantity * price).toFixed(2)}`;
+                                    }
+                                }
+                            }
+                            
+                            showNotification(`✓ ${symbol}: $${info.current_price.toFixed(2)}`, 'success');
+                        } else {
+                            showNotification(`Símbolo ${symbol} no encontrado`, 'error');
+                        }
+                    }
+                }
+            }, 800); // Wait 800ms after last keystroke
+        });
+    }
 }
