@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.transaction import PortfolioSummary
 
+from app.services.stock_price_service import StockPriceService
+
 
 class PortfolioService:
     """Service for portfolio calculations and analysis"""
@@ -76,10 +78,15 @@ class PortfolioService:
                     else 0
                 )
 
-                # Use last transaction price as "current" price
-                # In a real app, you'd fetch this from a stock price API
-                last_trans = [t for t in transactions if t.stock_symbol == symbol][-1]
-                current_price = last_trans.price_per_share
+                # Get current price from Yahoo Finance
+                current_price = StockPriceService.get_current_price(symbol)
+                # Fallback to last transaction price if API fails
+                if current_price is None:
+                    last_trans = [t for t in transactions if t.stock_symbol == symbol][-1]
+                    current_price = last_trans.price_per_share
+                    print(f"Warning: Using last transaction price for {symbol}: ${current_price}")
+                else:
+                    print(f"Success: Using real-time price for {symbol}: ${current_price}")
 
                 # Calculate values
                 current_value = data["total_shares"] * current_price

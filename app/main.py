@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database.connection import Base, SessionLocal, engine
-from app.routers import auth, portfolio, transactions
+from app.routers import auth, portfolio, transactions, stocks
 
 
 # Lifespan context manager (replaces deprecated on_event)
@@ -56,7 +56,14 @@ app = FastAPI(
             "name": "Transactions",
             "description": "Stock transaction management (buy/sell)",
         },
-        {"name": "Portfolio", "description": "Portfolio analysis and statistics"},
+        {
+            "name": "Portfolio", 
+            "description": "Portfolio analysis and statistics"
+        },
+        {
+            "name": "Stocks",
+            "description": "Real-time stock prices and information"
+        }
     ],
 )
 
@@ -76,6 +83,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(auth.router)
 app.include_router(transactions.router)
 app.include_router(portfolio.router)
+app.include_router(stocks.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -103,6 +111,7 @@ async def root():
             "authentication": "/auth",
             "transactions": "/transactions",
             "portfolio": "/portfolio",
+            "stocks": "/stocks",
         },
         "web_interface": "/",
         "status": "operational",
