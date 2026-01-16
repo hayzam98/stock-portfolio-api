@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Portfolio - Gestión de Inversiones</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📈 Stock Portfolio Manager</h1>
+            <div id="user-info" class="user-info" style="display: none;">
+                <span id="username-display"></span>
+                <button onclick="logout()" class="btn btn-secondary">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <!-- Login/Register Section -->
+        <div id="auth-section" class="auth-section">
+            <div class="auth-container">
+                <div class="tabs">
+                    <button class="tab-button active" onclick="showTab('login')">Iniciar Sesión</button>
+                    <button class="tab-button" onclick="showTab('register')">Registrarse</button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="login-tab" class="tab-content active">
+                    <h2>Iniciar Sesión</h2>
+                    <form onsubmit="login(event)">
+                        <div class="form-group">
+                            <label>Usuario:</label>
+                            <input type="text" id="login-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña:</label>
+                            <input type="password" id="login-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                    </form>
+                </div>
+
+                <!-- Register Form -->
+                <div id="register-tab" class="tab-content">
+                    <h2>Crear Cuenta</h2>
+                    <form onsubmit="register(event)">
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" id="register-email" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Usuario:</label>
+                            <input type="text" id="register-username" required minlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña:</label>
+                            <input type="password" id="register-password" required minlength="8">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Registrarse</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App Section -->
+        <div id="app-section" class="app-section" style="display: none;">
+            
+            <!-- Navigation Tabs -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showSection('transactions')">📊 Transacciones</button>
+                <button class="nav-tab" onclick="showSection('portfolio')">💼 Portfolio</button>
+                <button class="nav-tab" onclick="showSection('add-transaction')">➕ Nueva Transacción</button>
+            </div>
+
+            <!-- Add Transaction Section -->
+            <div id="add-transaction-section" class="section">
+                <h2>Nueva Transacción</h2>
+                <form onsubmit="createTransaction(event)" class="transaction-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Símbolo de la Acción:</label>
+                            <input type="text" id="stock-symbol" placeholder="AAPL, GOOGL, MSFT..." required maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre de la Empresa:</label>
+                            <input type="text" id="stock-name" placeholder="Apple Inc.">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo de Transacción:</label>
+                            <select id="transaction-type" required>
+                                <option value="buy">Compra</option>
+                                <option value="sell">Venta</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cantidad de Acciones:</label>
+                            <input type="number" id="quantity" step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio por Acción ($):</label>
+                            <input type="number" id="price-per-share" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Total:</label>
+                            <input type="text" id="total-amount" readonly class="readonly">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notas (opcional):</label>
+                        <textarea id="notes" rows="3" placeholder="Agrega notas sobre esta transacción..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Crear Transacción</button>
+                </form>
+            </div>
+
+            <!-- Transactions List Section -->
+            <div id="transactions-section" class="section active">
+                <h2>Historial de Transacciones</h2>
+                <div class="filters">
+                    <input type="text" id="filter-symbol" placeholder="Filtrar por símbolo..." onkeyup="filterTransactions()">
+                    <select id="filter-type" onchange="filterTransactions()">
+                        <option value="">Todos los tipos</option>
+                        <option value="buy">Compras</option>
+                        <option value="sell">Ventas</option>
+                    </select>
+                </div>
+                <div id="transactions-list" class="transactions-list">
+                    <p class="loading">Cargando transacciones...</p>
+                </div>
+            </div>
+
+            <!-- Portfolio Section -->
+            <div id="portfolio-section" class="section">
+                <h2>Resumen del Portfolio</h2>
+                
+                <!-- Portfolio Totals -->
+                <div id="portfolio-totals" class="portfolio-totals">
+                    <div class="stat-card">
+                        <h3>Valor Actual</h3>
+                        <p class="stat-value" id="total-current-value">$0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Invertido</h3>
+                        <p class="stat-value" id="total-invested">$0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Ganancia/Pérdida</h3>
+                        <p class="stat-value" id="total-profit-loss">$0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Retorno</h3>
+                        <p class="stat-value" id="total-percentage">0.00%</p>
+                    </div>
+                </div>
+
+                <!-- Portfolio Holdings -->
+                <div id="portfolio-holdings" class="portfolio-holdings">
+                    <p class="loading">Cargando portfolio...</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Notifications -->
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
