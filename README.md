@@ -1,8 +1,12 @@
 # Stock Portfolio API 📈
 
+![Tests](https://github.com/your-username/stock-portfolio-api/workflows/Tests/badge.svg)
+![Code Quality](https://github.com/your-username/stock-portfolio-api/workflows/Code%20Quality/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+A professional RESTful API for tracking stock portfolio transactions with user authentication, built with FastAPI and MySQL.
 
 A professional RESTful API for tracking stock portfolio transactions with user authentication, built with FastAPI and MySQL.
 
