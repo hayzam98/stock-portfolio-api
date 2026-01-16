@@ -1,20 +1,48 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy import text
+from contextlib import asynccontextmanager
 from app.database.connection import engine, Base, SessionLocal
 from app.routers import auth, transactions, portfolio
 from app.config import settings
+from pathlib import Path
 
-# Create database tables on startup
-Base.metadata.create_all(bind=engine)
+# Lifespan context manager (replaces deprecated on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events
+    Replaces the deprecated @app.on_event decorators
+    """
+    # Startup
+    print(f"\n{'='*60}")
+    print(f"🚀 {settings.app_name} v{settings.app_version}")
+    print(f"{'='*60}")
+    print(f"🌐 Web Interface: http://localhost:8000/")
+    print(f"📚 API Documentation: http://localhost:8000/docs")
+    print(f"🏥 Health Check: http://localhost:8000/health")
+    print(f"{'='*60}\n")
+    
+    # Create database tables on startup
+    Base.metadata.create_all(bind=engine)
+    
+    yield  # Application runs here
+    
+    # Shutdown
+    print(f"\n{'='*60}")
+    print(f"👋 {settings.app_name} shutting down...")
+    print(f"{'='*60}\n")
 
-# Initialize FastAPI application
+# Initialize FastAPI application with lifespan
 app = FastAPI(
     title=settings.app_name,
     description="A RESTful API for tracking stock purchases and sales with user authentication",
     version=settings.app_version,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,  # Use lifespan instead of on_event
     openapi_tags=[
         {
             "name": "Authentication",
@@ -40,15 +68,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(transactions.router)
 app.include_router(portfolio.router)
 
-@app.get("/", tags=["Root"])
+@app.get("/", include_in_schema=False)
+async def serve_spa():
+    """
+    Serve the web interface (SPA)
+    
+    Returns the main HTML file for the web application
+    """
+    return FileResponse("app/templates/index.html")
+
+@app.get("/api", tags=["Root"])
 async def root():
     """
-    Root endpoint with API information
+    Root API endpoint with information
     
     Returns basic information about the API and links to documentation
     """
@@ -64,6 +104,7 @@ async def root():
             "transactions": "/transactions",
             "portfolio": "/portfolio"
         },
+        "web_interface": "/",
         "status": "operational"
     }
 
@@ -90,22 +131,3 @@ async def health_check():
         "version": settings.app_version,
         "database": db_status
     }
-
-# Startup event
-@app.on_event("startup")
-async def startup_event():
-    """Actions to perform on application startup"""
-    print(f"\n{'='*60}")
-    print(f"🚀 {settings.app_name} v{settings.app_version}")
-    print(f"{'='*60}")
-    print(f"📚 Documentation: http://localhost:8000/docs")
-    print(f"🏥 Health Check: http://localhost:8000/health")
-    print(f"{'='*60}\n")
-
-# Shutdown event
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Actions to perform on application shutdown"""
-    print(f"\n{'='*60}")
-    print(f"👋 {settings.app_name} shutting down...")
-    print(f"{'='*60}\n")
