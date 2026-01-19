@@ -70,6 +70,7 @@
             <div class="nav-tabs">
                 <button class="nav-tab active" onclick="showSection('transactions')">📊 Transacciones</button>
                 <button class="nav-tab" onclick="showSection('portfolio')">💼 Portfolio</button>
+                <button class="nav-tab" onclick="showSection('watchlist')">👁️ Lista de Seguimiento</button>
                 <button class="nav-tab" onclick="showSection('add-transaction')">➕ Nueva Transacción</button>
             </div>
 
@@ -168,6 +169,43 @@
                 </div>
             </div>
 
+            <!-- Watchlist Section -->
+            <div id="watchlist-section" class="section">
+                <h2>Lista de Seguimiento</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Agrega acciones para monitorear sus precios en tiempo real sin necesidad de comprarlas.
+                </p>
+
+                <!-- Add to Watchlist Form -->
+                <div class="watchlist-add-form">
+                    <form onsubmit="addToWatchlist(event)" style="display: flex; gap: 15px; margin-bottom: 30px;">
+                        <div class="form-group" style="flex: 1; margin: 0;">
+                            <input 
+                                type="text" 
+                                id="watchlist-symbol" 
+                                placeholder="Símbolo (ej: AAPL, GOOGL, MSFT...)" 
+                                required 
+                                maxlength="10"
+                                style="text-transform: uppercase;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: auto; padding: 12px 30px;">
+                            Agregar a Lista
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Watchlist Items -->
+                <div id="watchlist-items" class="watchlist-items">
+                    <p class="loading">No hay acciones en tu lista de seguimiento</p>
+                </div>
+
+                <!-- Refresh Button -->
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="refreshWatchlist()" class="btn btn-secondary" style="width: auto; padding: 12px 30px;">
+                        🔄 Actualizar Precios
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Notifications -->
