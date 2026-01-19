@@ -141,16 +141,29 @@ function showTab(tabName) {
 }
 
 function showSection(sectionName) {
+    // Remove active class from all tabs and sections
     document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
     
-    document.querySelector(`[onclick="showSection('${sectionName}')"]`).classList.add('active');
-    document.getElementById(`${sectionName}-section`).classList.add('active');
+    // Add active class to selected tab and section
+    const selectedTab = document.querySelector(`[onclick="showSection('${sectionName}')"]`);
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
     
+    const selectedSection = document.getElementById(`${sectionName}-section`);
+    if (selectedSection) {
+        selectedSection.classList.add('active');
+    }
+    
+    // Load data for specific sections
     if (sectionName === 'transactions') {
         loadTransactions();
     } else if (sectionName === 'portfolio') {
         loadPortfolio();
+    } else if (sectionName === 'watchlist') {
+        loadWatchlistFromStorage();
+        displayWatchlist();
     }
 }
 
@@ -410,14 +423,22 @@ async function fetchCurrentPrice(symbol) {
 // Fetch stock info from API
 async function fetchStockInfo(symbol) {
     try {
+        console.log(`Fetching info for ${symbol} with token:`, authToken ? 'Present' : 'Missing');
+        
         const response = await fetch(`${API_URL}/stocks/info/${symbol}`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
+        console.log(`Response status for ${symbol}:`, response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log(`Data for ${symbol}:`, data);
             return data;
         }
+        
+        const errorData = await response.json();
+        console.error(`Error response for ${symbol}:`, errorData);
         return null;
     } catch (error) {
         console.error('Error fetching stock info:', error);
@@ -493,23 +514,41 @@ function loadWatchlistFromStorage() {
     if (stored) {
         try {
             watchlist = JSON.parse(stored);
+            console.log('Watchlist loaded:', watchlist);
         } catch (e) {
+            console.error('Error loading watchlist:', e);
             watchlist = [];
         }
+    } else {
+        watchlist = [];
     }
 }
 
 // Save watchlist to localStorage
 function saveWatchlistToStorage() {
-    localStorage.setItem('watchlist', JSON.stringify(watchlist));
+    try {
+        localStorage.setItem('watchlist', JSON.stringify(watchlist));
+        console.log('Watchlist saved:', watchlist);
+    } catch (e) {
+        console.error('Error saving watchlist:', e);
+    }
 }
 
 // Add stock to watchlist
 async function addToWatchlist(event) {
     event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('addToWatchlist called');
     
     const symbolInput = document.getElementById('watchlist-symbol');
+    if (!symbolInput) {
+        console.error('watchlist-symbol input not found');
+        return;
+    }
+    
     const symbol = symbolInput.value.toUpperCase().trim();
+    console.log('Symbol to add:', symbol);
     
     if (!symbol) {
         showNotification('Por favor ingresa un símbolo válido', 'error');
@@ -525,28 +564,37 @@ async function addToWatchlist(event) {
     // Validate symbol and get info
     showNotification(`Validando ${symbol}...`, 'info');
     
-    const info = await fetchStockInfo(symbol);
-    
-    if (!info || !info.current_price) {
-        showNotification(`Símbolo ${symbol} no encontrado`, 'error');
-        return;
+    try {
+        const info = await fetchStockInfo(symbol);
+        console.log('Stock info received:', info);
+        
+        if (!info || !info.current_price) {
+            showNotification(`Símbolo ${symbol} no encontrado`, 'error');
+            return;
+        }
+        
+        // Add to watchlist
+        watchlist.push({
+            symbol: symbol,
+            name: info.name || symbol,
+            addedAt: new Date().toISOString()
+        });
+        
+        console.log('Added to watchlist:', watchlist);
+        
+        saveWatchlistToStorage();
+        showNotification(`${symbol} agregado a tu lista de seguimiento`, 'success');
+        
+        // Clear input
+        symbolInput.value = '';
+        
+        // Refresh display
+        await displayWatchlist();
+        
+    } catch (error) {
+        console.error('Error adding to watchlist:', error);
+        showNotification('Error al agregar la acción', 'error');
     }
-    
-    // Add to watchlist
-    watchlist.push({
-        symbol: symbol,
-        name: info.name || symbol,
-        addedAt: new Date().toISOString()
-    });
-    
-    saveWatchlistToStorage();
-    showNotification(`${symbol} agregado a tu lista de seguimiento`, 'success');
-    
-    // Clear input
-    symbolInput.value = '';
-    
-    // Refresh display
-    displayWatchlist();
 }
 
 // Remove stock from watchlist
@@ -554,6 +602,8 @@ function removeFromWatchlist(symbol) {
     if (!confirm(`¿Eliminar ${symbol} de tu lista de seguimiento?`)) {
         return;
     }
+    
+    console.log('Removing from watchlist:', symbol);
     
     watchlist = watchlist.filter(item => item.symbol !== symbol);
     saveWatchlistToStorage();
@@ -565,6 +615,13 @@ function removeFromWatchlist(symbol) {
 async function displayWatchlist() {
     const container = document.getElementById('watchlist-items');
     
+    if (!container) {
+        console.error('watchlist-items container not found');
+        return;
+    }
+    
+    console.log('Displaying watchlist:', watchlist);
+    
     if (watchlist.length === 0) {
         container.innerHTML = '<p class="watchlist-empty">No hay acciones en tu lista de seguimiento</p>';
         return;
@@ -572,92 +629,107 @@ async function displayWatchlist() {
     
     container.innerHTML = '<p class="watchlist-loading">Cargando precios...</p>';
     
-    // Fetch prices for all symbols
-    const promises = watchlist.map(async (item) => {
-        const info = await fetchStockInfo(item.symbol);
-        return {
-            ...item,
-            info: info
-        };
-    });
-    
-    const results = await Promise.all(promises);
-    
-    // Display cards
-    container.innerHTML = results.map(item => {
-        const info = item.info;
+    try {
+        // Fetch prices for all symbols
+        const promises = watchlist.map(async (item) => {
+            try {
+                const info = await fetchStockInfo(item.symbol);
+                return {
+                    ...item,
+                    info: info
+                };
+            } catch (error) {
+                console.error(`Error fetching info for ${item.symbol}:`, error);
+                return {
+                    ...item,
+                    info: null
+                };
+            }
+        });
         
-        if (!info || !info.current_price) {
+        const results = await Promise.all(promises);
+        console.log('Watchlist results:', results);
+        
+        // Display cards
+        container.innerHTML = results.map(item => {
+            const info = item.info;
+            
+            if (!info || !info.current_price) {
+                return `
+                    <div class="watchlist-card">
+                        <div class="watchlist-header">
+                            <div>
+                                <div class="watchlist-symbol">${item.symbol}</div>
+                                <div class="watchlist-name">Error al cargar datos</div>
+                            </div>
+                            <div>
+                                <button onclick="removeFromWatchlist('${item.symbol}')" class="watchlist-remove-btn">
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Calculate change
+            const previousClose = info.previous_close || info.current_price;
+            const change = info.current_price - previousClose;
+            const changePercent = (change / previousClose) * 100;
+            const changeClass = change >= 0 ? 'positive' : 'negative';
+            const changeSymbol = change >= 0 ? '+' : '';
+            
             return `
                 <div class="watchlist-card">
                     <div class="watchlist-header">
                         <div>
                             <div class="watchlist-symbol">${item.symbol}</div>
-                            <div class="watchlist-name">Error al cargar datos</div>
+                            <div class="watchlist-name">${info.name || 'Sin nombre'}</div>
                         </div>
-                        <div>
-                            <button onclick="removeFromWatchlist('${item.symbol}')" class="watchlist-remove-btn">
-                                Eliminar
-                            </button>
+                        <div class="watchlist-price">
+                            <div class="watchlist-current-price">$${info.current_price.toFixed(2)}</div>
+                            <div class="watchlist-change ${changeClass}">
+                                ${changeSymbol}$${change.toFixed(2)} (${changeSymbol}${changePercent.toFixed(2)}%)
+                            </div>
                         </div>
+                    </div>
+                    
+                    <div class="watchlist-info">
+                        <div class="watchlist-info-item">
+                            <div class="watchlist-info-label">Apertura</div>
+                            <div class="watchlist-info-value">$${(info.open || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="watchlist-info-item">
+                            <div class="watchlist-info-label">Máximo</div>
+                            <div class="watchlist-info-value">$${(info.day_high || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="watchlist-info-item">
+                            <div class="watchlist-info-label">Mínimo</div>
+                            <div class="watchlist-info-value">$${(info.day_low || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="watchlist-info-item">
+                            <div class="watchlist-info-label">Cierre Ant.</div>
+                            <div class="watchlist-info-value">$${(info.previous_close || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="watchlist-actions">
+                        <button onclick="removeFromWatchlist('${item.symbol}')" class="watchlist-remove-btn">
+                            🗑️ Eliminar
+                        </button>
                     </div>
                 </div>
             `;
-        }
+        }).join('');
         
-        // Calculate change
-        const previousClose = info.previous_close || info.current_price;
-        const change = info.current_price - previousClose;
-        const changePercent = (change / previousClose) * 100;
-        const changeClass = change >= 0 ? 'positive' : 'negative';
-        const changeSymbol = change >= 0 ? '+' : '';
+        // Add refresh time
+        const refreshTime = new Date().toLocaleTimeString('es-ES');
+        container.innerHTML += `<p class="watchlist-refresh-time">Última actualización: ${refreshTime}</p>`;
         
-        return `
-            <div class="watchlist-card">
-                <div class="watchlist-header">
-                    <div>
-                        <div class="watchlist-symbol">${item.symbol}</div>
-                        <div class="watchlist-name">${info.name || 'Sin nombre'}</div>
-                    </div>
-                    <div class="watchlist-price">
-                        <div class="watchlist-current-price">$${info.current_price.toFixed(2)}</div>
-                        <div class="watchlist-change ${changeClass}">
-                            ${changeSymbol}$${change.toFixed(2)} (${changeSymbol}${changePercent.toFixed(2)}%)
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="watchlist-info">
-                    <div class="watchlist-info-item">
-                        <div class="watchlist-info-label">Apertura</div>
-                        <div class="watchlist-info-value">$${(info.open || 0).toFixed(2)}</div>
-                    </div>
-                    <div class="watchlist-info-item">
-                        <div class="watchlist-info-label">Máximo</div>
-                        <div class="watchlist-info-value">$${(info.day_high || 0).toFixed(2)}</div>
-                    </div>
-                    <div class="watchlist-info-item">
-                        <div class="watchlist-info-label">Mínimo</div>
-                        <div class="watchlist-info-value">$${(info.day_low || 0).toFixed(2)}</div>
-                    </div>
-                    <div class="watchlist-info-item">
-                        <div class="watchlist-info-label">Cierre Ant.</div>
-                        <div class="watchlist-info-value">$${(info.previous_close || 0).toFixed(2)}</div>
-                    </div>
-                </div>
-                
-                <div class="watchlist-actions">
-                    <button onclick="removeFromWatchlist('${item.symbol}')" class="watchlist-remove-btn">
-                        🗑️ Eliminar
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    // Add refresh time
-    const refreshTime = new Date().toLocaleTimeString('es-ES');
-    container.innerHTML += `<p class="watchlist-refresh-time">Última actualización: ${refreshTime}</p>`;
+    } catch (error) {
+        console.error('Error displaying watchlist:', error);
+        container.innerHTML = '<p class="watchlist-empty">Error al cargar la lista de seguimiento</p>';
+    }
 }
 
 // Refresh watchlist prices
@@ -665,22 +737,4 @@ async function refreshWatchlist() {
     showNotification('Actualizando precios...', 'info');
     await displayWatchlist();
     showNotification('Precios actualizados', 'success');
-}
-
-// Load watchlist when showing the section
-function showSection(sectionName) {
-    document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
-    
-    document.querySelector(`[onclick="showSection('${sectionName}')"]`).classList.add('active');
-    document.getElementById(`${sectionName}-section`).classList.add('active');
-    
-    if (sectionName === 'transactions') {
-        loadTransactions();
-    } else if (sectionName === 'portfolio') {
-        loadPortfolio();
-    } else if (sectionName === 'watchlist') {
-        loadWatchlistFromStorage();
-        displayWatchlist();
-    }
 }
